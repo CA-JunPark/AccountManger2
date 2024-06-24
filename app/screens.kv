@@ -1,0 +1,61 @@
+<PW>:
+    GridLayout:
+        cols: 1
+        size_hint: 0.8, 0.8
+        pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        Image:
+            source: "logo.png"
+
+        Label:
+            text: "Please Enter Your Password"
+            font_size: 30
+            color: 0, 1, 0.8, 1  
+            
+        TextInput:
+            id: user_input
+            multiline: False
+            font_size: 30
+            padding_y: [20, 20]
+            size_hint: 1, 0.3
+            on_text_validate: root.enter(self)
+
+        Button:
+            text: "Enter"
+            size_hint: 1, 0.5
+            bold: True
+            background_color: 0, 1, 0.8, 1  
+            font_size: 30
+            on_press: root.enter(user_input)
+
+        Label:
+            id: void
+            text: 
+            font_size: 30
+
+<Main>:
+    GridLayout:
+
+    ScrollView:
+        id: accountsScrollView
+        do_scroll_x: False
+        size_hint: 1, None
+        size: root.width, root.height
+        pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        GridLayout:
+            id: accountsGridLayout
+            cols: 1
+            spacing: 10
+            size_hint_y: None
+            height: self.minimum_height
+
+            Button:
+                id: exampleAccount
+                text: "Example"
+                size: 1, 1
+                size_hint_y:None
+                height: 40
+                font_size: 30
+                background_color: 0, 1, 0.8, 1  
+                
