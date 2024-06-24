@@ -11,7 +11,7 @@ Builder.load_file('screens.kv')
 class PW(Screen):
     def enter(self, instance):
         #TODO: Private Key -> decrypt -> PWs
-         
+
         print(instance.text)
         self.manager.current = "main"
         
