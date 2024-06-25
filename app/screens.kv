@@ -1,3 +1,5 @@
+<ImageButton@ButtonBehavior+Image>
+
 <PW>:
     GridLayout:
         cols: 1
@@ -19,8 +21,8 @@
             size_hint: 1, 0.3
             halign: 'center'
             password: True
-            padding:[0,12,0,0]
-            on_text_validate: root.enter(self)
+            padding:[0,dp(12),0,0]
+            on_text_validate: root.pwEnter(self)
 
         Button:
             text: "Enter"
@@ -29,7 +31,7 @@
             bold: True
             background_color: 0, 1, 0.8, 1  
             font_size: 30
-            on_press: root.enter(user_input)
+            on_press: root.pwEnter(user_input)
             
         Label:
             id: void
@@ -39,38 +41,74 @@
             id: void
             text: 
             font_size: 30
+    
 <Main>:
     GridLayout:
         cols: 1
-        size_hint: 0.9, 0.95
-        pos_hint: {"center_x": 0.5, "center_y": 0.5}
-        spacing: 40
+        size_hint: 1, 0.98
+        spacing: [0, dp(20)]
 
-        Label:
-            text: "Temp"
-            font_size: 30
-            color: 0, 1, 0.8, 1  
+        GridLayout:
+            rows:1
             
-        ScrollView:
-            id: accountsScrollView
-            do_scroll_x: False
-            size_hint: 0.8, None
-            size: root.width, root.height
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            
-            GridLayout:
-                id: accountsGridLayout
-                cols: 1
-                spacing: 10
+            ImageButton:
+                source: 'settings.png'
+                size_hint: None, None
+                size: dp(50), dp(50)
+                pos_hint: {'center_x': .5, 'center_y': .5}
+                on_press: root.on_setting_press(self)
+                
+            Label:
+                text: "Search By"
+                font_size: dp(15)
+                text_size: None, dp(50)
                 size_hint_y: None
-                height: self.minimum_height
+                height: dp(50)
+                padding: 0,0,0,dp(12)
+                size: self.texture_size
+            
+            Spinner:
+                id: spinner
+                text: 'option'
+                font_size: 30
+                values: ['A', 'Option 2', 'Option 3']
+                text_size: None, dp(50)
+                size_hint_y: None
+                size: self.texture_size
+                height: dp(30)
+                padding: 0,0,0,dp(12)
+                pos_hint: {'center_x': .5, 'center_y': .5}
+                on_text: root.on_spinner_press(self)
+
+            Widget: # Blank
+                size_hint_x: None
+                width: dp(10)
+
+            TextInput:
+                id: searchInput
+                multiline: False
+                font_size: 30
+                size_hint_y: None
+                height: dp(50)
+                padding: [dp(5),dp(12),0,0]
+                on_text_validate: root.searchEnter(self)
+
+            ImageButton:
+                source: 'search.png'
+                size_hint: None, None
+                size: dp(50), dp(50)
+                pos_hint: {'center_x': .5, 'center_y': .5}
+                on_press: root.searchEnter(searchInput)   
+        
+        ScrollView:
+            GridLayout:
+                id: accounts
+                cols: 1
+                spacing : dp(10)
+                size_hint_y: None
+                height: root.height
 
                 Button:
-                    id: exampleAccount
-                    text: "Example"
-                    size: 1, 1
-                    size_hint_y:None
-                    height: 40
-                    font_size: 30
-                    background_color: 0, 1, 0.8, 1  
+                    text: "A"
+
                 

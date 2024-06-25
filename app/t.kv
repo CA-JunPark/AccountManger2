@@ -1,0 +1,32 @@
+<MainWidget>:
+    orientation: 'vertical'
+    Button:
+        id: main_button
+        text: 'Open Dropdown'
+        size_hint: None, None
+        size: 200, 50
+        pos_hint: {'center_x': .5, 'center_y': .5}
+        on_release: app.root.ids.dropdown.open(self)
+
+    DropDown:
+        id: dropdown
+        on_select: app.on_select_option(*args)
+        
+        Button:
+            text: 'Option 1'
+            size_hint_y: None
+            height: 44
+            on_release:
+                app.root.ids.dropdown.select('Option 1')
+        Button:
+            text: 'Option 2'
+            size_hint_y: None
+            height: 44
+            on_release:
+                app.root.ids.dropdown.select('Option 2')
+        Button:
+            text: 'Option 3'
+            size_hint_y: None
+            height: 44
+            on_release:
+                app.root.ids.dropdown.select('Option 3')
