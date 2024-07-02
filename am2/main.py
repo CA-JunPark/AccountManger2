@@ -1,3 +1,4 @@
+from typing import override
 import flet as ft
 import sql
 from passlib.hash import pbkdf2_sha256
@@ -63,7 +64,7 @@ class Confirm(ft.AlertDialog):
                          actions_alignment=ft.MainAxisAlignment.END)
         
 class ColorButton(ft.TextButton):
-    def __init__(self, text, on_click=None):
+    def __init__(self, text: str, on_click=None):
         super().__init__(content=ft.Text(f"{text}",
                                        size=20),
                        style=ft.ButtonStyle(
@@ -219,7 +220,7 @@ class Main: # 2
         self.db = db
         
         # get all accounts from DB
-        self.accounts = sorted(self.db.getAll(), key=lambda x: x['name'].lower())
+        self.accounts = sorted(self.db.getAll(), key=lambda x: x['title'].lower())
         
         self.accountsSubset = self.accounts.copy()
         
@@ -291,7 +292,7 @@ class Main: # 2
         
     def updateAccountButtons(self):
         self.AccountButtons.controls = [AccountBtn(id=account.get('id'),
-                                                    text=f"{account.get('name')}\n{account.get('account')}\n{
+                                                    text=f"{account.get('title')}\n{account.get('account')}\n{
                                                     account.get('pw')}",
                                                     on_click=self.clickAccount,
                                                     data=account)
@@ -316,15 +317,15 @@ class Main: # 2
         if val == "":
             self.accountsSubset = self.accounts
         else:
-            self.accountsSubset = [d for d in self.accounts if val.lower() in d.get('name').lower()]
+            self.accountsSubset = [d for d in self.accounts if val.lower() in d.get('title').lower()]
         self.sortOrder(e)
         
     def sortOrder(self, e):
         if self.sortButton.data == "UP":
-            self.accountsSubset = sorted(self.accountsSubset, key=lambda x: x['name'].lower())
+            self.accountsSubset = sorted(self.accountsSubset, key=lambda x: x['title'].lower())
         else:
             self.accountsSubset = sorted(
-                self.accountsSubset, key=lambda x: x['name'].lower(), reverse=True)
+                self.accountsSubset, key=lambda x: x['title'].lower(), reverse=True)
         
         self.updateAccountButtons()
         self.page.update()
@@ -342,6 +343,11 @@ class AddAccount:  # 3
         self.page = page
         self.db = db
         self.uploaded = False
+        
+        self.dig = ft.AlertDialog(
+            title=ft.Text("",
+                          size=22),
+        )
 
         self.filePicker = ft.FilePicker(on_result=self.uploadLogo)
         self.page.overlay.append(self.filePicker)
@@ -364,7 +370,7 @@ class AddAccount:  # 3
                              width=150,
                              height=150)
         
-        self.nameField = ft.TextField(label="Name",
+        self.titleField = ft.TextField(label="Title",
                                       bgcolor=ft.colors.WHITE24)
         self.accountField = ft.TextField(label="Account",
                                          bgcolor=ft.colors.WHITE24)
@@ -381,7 +387,7 @@ class AddAccount:  # 3
         
         self.buttonContainer = ft.Container(
             content=ft.Row(
-                alignment=ft.MainAxisAlignment.END,
+                alignment=ft.MainAxisAlignment.CENTER,
                 controls=[
                     ft.IconButton(
                         icon=ft.icons.REPLAY_ROUNDED,
@@ -410,7 +416,7 @@ class AddAccount:  # 3
                         ),
                         margin=ft.margin.only(top=40)
                     ),
-                    self.nameField,
+                    self.titleField,
                     self.accountField,
                     self.pwField,
                     self.noteField,
@@ -437,7 +443,8 @@ class AddAccount:  # 3
     
     def resetValues(self, e):
         self.logo.src_base64 = self.default
-        self.nameField.value = ""
+        self.uploaded = False
+        self.titleField.value = ""
         self.accountField.value = ""
         self.pwField.value = ""
         self.noteField.value = ""
@@ -445,21 +452,17 @@ class AddAccount:  # 3
         self.page.update()
     
     def addValues(self, e):
-        dig = ft.AlertDialog(
-            title=ft.Text("Successfully added to the Database",
-                          size=22),
-        )
         if self.uploaded:
             logoBase64 = self.logo.src_base64
         else:
             logoBase64 = ""
         
-        name = self.nameField.value
-        if name == "":
+        title = self.titleField.value
+        if title == "":
             self.closeAdd(e)
-            msg = "You must have 'Name'"
+            msg = "You must have 'title'"
         else:
-            self.db.put(name=name,
+            self.db.put(title=title,
                         account=self.accountField.value,
                         pw=self.pwField.value,
                         logo=logoBase64,
@@ -470,9 +473,9 @@ class AddAccount:  # 3
             self.closeAdd(e)
             changePage(2, self.page, self.db)
        
-        dig.title.value = msg
+        self.dig.title.value = msg
+        self.page.open(self.dig)
         
-        self.page.open(dig)
         self.page.update()
         
     def uploadLogo(self, e: ft.FilePickerResultEvent):
@@ -495,16 +498,83 @@ class Account(AddAccount): # 4
             self.img = data.get('logo')
             
         self.logo.src_base64 = self.img
-        self.nameField.value = data.get('name')
+        self.titleField.value = data.get('title')
         self.accountField.value = data.get('account')
         self.pwField.value = data.get('pw')
         self.noteField.value = data.get('note')
         
+        self.confirmDelete = Confirm("Delete?", self.deleteValues, self.closeDelete)
+        self.confirmSave = Confirm("Save?", self.saveValues, self.closeSave)
+        
         self.buttonContainer.content=ft.Row(
+            alignment=ft.MainAxisAlignment.CENTER,
             controls=[
-                
+                ColorButton("Delete", 
+                            on_click=lambda e: page.open(self.confirmDelete)),
+                ft.IconButton(
+                    icon=ft.icons.REPLAY_ROUNDED,
+                    height=45,
+                    width=100,
+                    on_click=lambda e: page.open(self.confirmReset)
+                ),
+                ColorButton("Save",
+                            on_click=lambda e:page.open(self.confirmSave))
             ]
         )
+    
+    @override
+    def resetValues(self, e):
+        self.logo.src_base64 = self.default
+        self.uploaded = False
+        self.titleField.value = self.data.get('title')
+        self.accountField.value = self.data.get('account')
+        self.pwField.value = self.data.get('pw')
+        self.noteField.value = self.data.get('note')
+        self.closeReset(e)
+        self.page.update()
+
+    def deleteValues(self, e):
+        self.db.delete(self.data.get('id'))
+        self.closeDelete(e)
+        
+        msg = "Successfully deleted from the Database"
+        self.dig.title.value = msg
+        self.page.open(self.dig)
+        
+        changePage(2, self.page, self.db)
+        self.page.update()
+    
+    def saveValues(self, e):
+        if self.uploaded:
+            logoBase64 = self.logo.src_base64
+        else:
+            logoBase64 = ""
+        
+        title = self.titleField.value
+        if title == "":
+            self.closeSave(e)
+            msg = "You must have 'title'"
+        else:
+            self.db.update(self.data.get('id'),
+                          title=title,
+                          account=self.accountField.value,
+                          pw=self.pwField.value,
+                          logo=logoBase64,
+                          note=self.noteField.value)
+            msg = "Successfully saved to the Database"
+
+            self.closeSave(e)
+            changePage(2, self.page, self.db)
+
+        self.dig.title.value = msg
+        self.page.open(self.dig)
+
+        self.page.update()
+    def closeDelete(self, e):
+        self.page.close(self.confirmDelete)
+    
+    def closeSave(self, e):
+        self.page.close(self.confirmSave)
         
 class Setting: # 5
     def __init__(self, page: ft.Page, db: sql.DynamoDB):

@@ -5,7 +5,7 @@ class DynamoDB:
     def __init__(self) -> None:
         self.db = boto3.resource('dynamodb')
         self.table = self.db.Table('Accounts')
-        self. attributes = set(['id', 'name', 'account', 'pw', 'logo', 'note'])
+        self. attributes = set(['id', 'title', 'account', 'pw', 'logo', 'note'])
         
     def encodeImg(self, img: bytes) -> str:
         """_summary_
@@ -43,20 +43,20 @@ class DynamoDB:
         """
         return self.table.scan(TableName="Accounts", Select='COUNT')["Count"]
     
-    def put(self, name: str = "", account: str = "", pw: str = "", logo: str = "", note: str = "") -> None:
+    def put(self, title: str = "", account: str = "", pw: str = "", logo: str = "", note: str = "") -> None:
         """_summary_
         
         Put an item in the table
         
         Args:
-            name (str): name for the account
+            title (str): title for the account
             account (str): account
             pw (str): hashed password
             logo (str): base64 encoded logo image
             note (str): additional notes about the account
         """
         # do nothing if no information is given
-        if name+account+pw+logo+note == "":
+        if title+account+pw+logo+note == "":
             return 
         
         self.table.put_item(
@@ -64,7 +64,7 @@ class DynamoDB:
                 'id': self.count(),
                 'account': account,
                 'logo' : logo,
-                'name' : name,
+                'title' : title,
                 'note' : note,
                 'pw'   : pw
             }
@@ -91,9 +91,9 @@ class DynamoDB:
     def get(self, **kwargs) -> dict:
         """_summary_
 
-        Get an item
+        Get an item by an attribute name and value
 
-        Kwrgs:
+        Kwrgs: id, title, account, pw, logo, note
                     
         Returns:
             list: item
@@ -109,8 +109,8 @@ class DynamoDB:
                 elif not isinstance(value, str):
                     raise TypeError(1, value)
         except NameError:
-            print("Invalid attribute name.")
-            print("Valid attribute names are 'id', 'name', 'account', 'pw', 'logo', 'note'.")
+            print("Invalid attribute Title.")
+            print("Valid attribute names are 'title', 'account', 'pw', 'logo', 'note'")
         except TypeError as v:
             if v.args[0] == 0:
                 print("You entered: ", type(v.args[1]))
@@ -121,7 +121,7 @@ class DynamoDB:
             
         return self.table.get_item(Key=kwargs)['Item']
     
-    def update(self, targetID:int, **kwargs)  -> None:
+    def update(self, targetID:int, **kwargs) -> None:
         """_summary_
         
         Update an item
@@ -158,7 +158,7 @@ class DynamoDB:
         except NameError:
             print("Invalid attribute name.")
             print(
-                "Valid attribute names are 'id', 'name', 'account', 'pw', 'logo', 'note'.")
+                "Valid attribute names are 'id', 'title', 'account', 'pw', 'logo', 'note'.")
         except TypeError as v:
             print("You entered: ", type(v.args[0]))
             print("Please enter a string")
