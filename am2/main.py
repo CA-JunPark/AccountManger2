@@ -40,7 +40,7 @@ class AccountBtn(ft.TextButton):
                         overlay_color="#1E9690",
                         shape=ft.RoundedRectangleBorder(radius=10),
                     )
-        self.width = 250
+        self.width = 230
         self.height = 100
         self.data = data
         self.on_click = on_click
@@ -223,8 +223,7 @@ class Main: # 2
         self.ButtonContainer = ft.Container(
             alignment=ft.alignment.center,
             width = 400,
-            height = 400*16/9 - 180,
-            margin = ft.margin.only(bottom=100),
+            height = 400*16/9 - 161,
             content=self.AccountButtons
             )
         
@@ -254,7 +253,15 @@ class Main: # 2
                 ]
             )
         )
-    
+        
+        self.page.floating_action_button = ft.FloatingActionButton(icon=ft.icons.ADD_ROUNDED,
+                                                                   bgcolor="#1E9690",
+                                                                   focus_color="#45D094",
+                                                                   on_click=self.clickAdd)
+        self.page.floating_action_button_location = ft.FloatingActionButtonLocation.START_FLOAT
+        
+        self.page.update()
+        
     def updateAccountButtons(self):
         self.AccountButtons.controls = [AccountBtn(id=account.get('id'),
                                                     text=f"{account.get('name')}\n{account.get('account')}\n{
@@ -329,6 +336,7 @@ def main(page: ft.Page):
         app = PWsetUp(page)
     else:
         # app = PW(page)
-        app = Main(page)
+        # app = Main(page)
+        app = Account(page)
     
 ft.app(main)
