@@ -81,9 +81,8 @@ class ColorButton(ft.TextButton):
 class PW: # 0
     def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
-        self.adminPW = adminPW
+        self.adminPW = adminPW # encrypted before submit
         self.db = db
-        self.encryptedPW = self.db.get(id=0)['pw']
         
         self.pw_field = ft.TextField(bgcolor="WHITE24",
                                 autofocus=True,
@@ -126,7 +125,7 @@ class PW: # 0
     def enter(self,e):
         pw = self.pw_field.value
         
-        if AES.verifyPW(self.encryptedPW, pw):
+        if AES.verifyPW(self.adminPW, pw):
             self.adminPW = AES.decryptPW(self.adminPW, pw)
             # Go to Main
             changePage(2,self.page, self.adminPW, self.db,)
@@ -136,12 +135,14 @@ class PW: # 0
             dlg = ft.AlertDialog(title=ft.Text("Wrong Password", 
                                                size=20, 
                                                text_align="center"))
+            self.pw_field.value = ""
             self.page.open(dlg)
+            self.page.update()
             
 class PWsetUp: # 1
     def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
-        self.adminPW = adminPW
+        self.adminPW = adminPW # = "" before submit
         self.db = db
 
         self.pw_field = ft.TextField(bgcolor="WHITE24",
@@ -203,7 +204,8 @@ class PWsetUp: # 1
             valid = True
             
             # hash pw
-            pw = AES.encryptPW(pw)
+            pw = AES.encryptData(pw)
+            self.adminPW = pw
             
             # update admin password
             self.db.update(0,title="admin",account="user",pw=pw)
@@ -222,7 +224,7 @@ class PWsetUp: # 1
 class Main: # 2
     def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
-        self.adminPW = adminPW
+        self.adminPW = adminPW # decrypted
         self.db = db
         
         # get all accounts from DB
@@ -348,7 +350,7 @@ class Main: # 2
 class AddAccount:  # 3
     def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
-        self.adminPW = adminPW
+        self.adminPW = adminPW  # decrypted
         self.db = db
         self.uploaded = False
         
@@ -589,7 +591,7 @@ class Account(AddAccount): # 4
 class Setting: # 5
     def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
-        self.adminPW = adminPW
+        self.adminPW = adminPW # decrypted
         self.db = db
         
         # width and height for buttons
@@ -638,7 +640,7 @@ class Setting: # 5
 class ChangePW: # 6
     def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
-        self.adminPW = adminPW
+        self.adminPW = adminPW  # decrypted
         self.db = db
         
         with open("assets/security_icons.txt", "r") as f:
@@ -663,7 +665,8 @@ class ChangePW: # 6
                                          password=True,
                                          multiline=False,
                                          text_align=ft.TextAlign.CENTER,
-                                         label="Confirm New PW"
+                                         label="Confirm New PW",
+                                         on_submit=self.enter
                                          )
         
         self.page.add(
@@ -707,12 +710,25 @@ class ChangePW: # 6
         
     def yesChangePW(self,e):
         try:
-            newPW = AES.encryptPW(self.newPW.value)
+            encryptedNewAdminPW = AES.encryptData(self.newPW.value)
         except:
-            print("Encrypt Failed")
-            
-        self.db.update(targetID=0, pw=newPW)
+            print("Admin PW Encrypt Failed")
         
+        # Update all passwords of accounts    
+        count = self.db.count()
+        print(count)
+        for id in range(1,count):
+            # hash to string
+            pwString = AES.decryptPW(self.db.get(id=id)['pw'], self.adminPW)
+            # string to newHash
+            newPW = AES.encryptData(self.newPW.value, pwString)
+            # update
+            self.db.update(id, pw = newPW)
+        
+        self.db.update(targetID=0, pw=encryptedNewAdminPW)
+        self.adminPW = encryptedNewAdminPW
+       
+
         self.dlg.title = ft.Text("Password Changed\nPlease Login Again",
                                 size=20,
                                 text_align="center")
@@ -752,6 +768,7 @@ class ChangePW: # 6
                 self.dlg.title = ft.Text("New Passwords Does Not Match",
                                     size=20,
                                     text_align="center")
+                self.page.open(self.dlg)
             else:
                 # Update Admin PW
                 self.page.open(self.confirmChange)
