@@ -9,12 +9,15 @@ def derive_key(password, salt):
     return key
 
 # Encrypt a string
-def encryptPW(password):
+def encryptData(password, data=None):
     salt = get_random_bytes(16)
     key = derive_key(password, salt)
     cipher = AES.new(key, AES.MODE_CFB)
     iv = cipher.iv
-    ciphertext = cipher.encrypt(password.encode())
+    if data is None:
+        ciphertext = cipher.encrypt(password.encode())
+    else:
+        ciphertext = cipher.encrypt(data.encode())
     encrypted_data = base64.b64encode(salt + iv + ciphertext).decode('utf-8')
     return encrypted_data
 

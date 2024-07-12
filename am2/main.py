@@ -3,30 +3,30 @@ import flet as ft
 import sql
 import AES
 
-def changePage(pageNum: int, page:ft.Page, db: sql.DynamoDB,data={}):
+def changePage(pageNum: int, page:ft.Page, adminPW:str, db: sql.DynamoDB,data={}):
     # Need Update after this function
     page.controls.clear()
     page.floating_action_button = None
     
     match pageNum:
         case 0:
-            return PW(page,db)
+            return PW(page, adminPW, db)
         case 1: 
-            return PWsetUp(page, db)
+            return PWsetUp(page, adminPW, db)
         case 2:
-            return Main(page, db)
+            return Main(page, adminPW, db)
         case 3:
-            return AddAccount(page, db)
+            return AddAccount(page, adminPW, db)
         case 4:
             if len(data) == 0:
                 return
-            return Account(page, db, data)
+            return Account(page, adminPW, db, data)
         case 5:
-            return Setting(page, db)
+            return Setting(page, adminPW, db)
         case 6:
-            return ChangePW(page, db)
+            return ChangePW(page, adminPW, db)
         case 7:
-            return About(page, db)
+            return About(page, adminPW, db)
 
 # Custom Flet Objects
 class CenterCon(ft.Container):
@@ -79,9 +79,10 @@ class ColorButton(ft.TextButton):
  
 # Pages
 class PW: # 0
-    def __init__(self, page: ft.Page, db: sql.DynamoDB):
-        self.db = db
+    def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
+        self.adminPW = adminPW
+        self.db = db
         self.encryptedPW = self.db.get(id=0)['pw']
         
         self.pw_field = ft.TextField(bgcolor="WHITE24",
@@ -126,8 +127,9 @@ class PW: # 0
         pw = self.pw_field.value
         
         if AES.verifyPW(self.encryptedPW, pw):
+            self.adminPW = AES.decryptPW(self.adminPW, pw)
             # Go to Main
-            changePage(2,self.page, self.db)
+            changePage(2,self.page, self.adminPW, self.db,)
             self.page.update()
         else:
             # open dialog
@@ -137,9 +139,10 @@ class PW: # 0
             self.page.open(dlg)
             
 class PWsetUp: # 1
-    def __init__(self, page: ft.Page, db: sql.DynamoDB):
-        self.db = db
+    def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
+        self.adminPW = adminPW
+        self.db = db
 
         self.pw_field = ft.TextField(bgcolor="WHITE24",
                                         autofocus=True,
@@ -213,12 +216,13 @@ class PWsetUp: # 1
         
         # Go to PW
         if valid:
-            changePage(0, self.page, self.db)
+            changePage(0, self.page,self.adminPW, self.db)
             self.page.update()
         
 class Main: # 2
-    def __init__(self, page: ft.Page, db: sql.DynamoDB):
+    def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
+        self.adminPW = adminPW
         self.db = db
         
         # get all accounts from DB
@@ -296,13 +300,13 @@ class Main: # 2
         """update controls of AccountButtons ft.Column"""
         self.AccountButtons.controls = [AccountBtn(id=account.get('id'),
                                                     text=f"{account.get('title')}\n{account.get('account')}\n{
-                                                    account.get('pw')}",
+                                                    AES.decryptPW(account.get('pw'),self.adminPW)}",
                                                     on_click=self.clickAccount,
                                                     data=account)
                                                     for account in self.accountsSubset]
                                             
     def clickSettings(self, e):
-        changePage(5, self.page, self.db)
+        changePage(5, self.page, self.adminPW, self.db)
         self.page.update()
     
     def clickSort(self, e):
@@ -334,16 +338,17 @@ class Main: # 2
         self.page.update()
             
     def clickAccount(self, e, data):
-        changePage(4, self.page, self.db, data)
+        changePage(4, self.page, self.adminPW, self.db, data)
         self.page.update()
     
     def clickAdd(self, e):
-        changePage(3, self.page, self.db)
+        changePage(3, self.page, self.adminPW, self.db)
         self.page.update()
 
 class AddAccount:  # 3
-    def __init__(self, page: ft.Page, db: sql.DynamoDB):
+    def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
+        self.adminPW = adminPW
         self.db = db
         self.uploaded = False
         
@@ -436,7 +441,7 @@ class AddAccount:  # 3
         self.page.floating_action_button_location = ft.FloatingActionButtonLocation.END_TOP
 
     def clickClose(self, e):
-        changePage(2, self.page, self.db)
+        changePage(2, self.page,self.adminPW, self.db)
         self.page.update()
     
     def closeReset(self, e):
@@ -468,14 +473,14 @@ class AddAccount:  # 3
         else:
             self.db.put(title=title,
                         account=self.accountField.value,
-                        pw=AES.decryptPW(self.pwField.value),
+                        pw=AES.encryptData(self.adminPW, self.pwField.value),
                         logo=logoBase64,
                         note=self.noteField.value
                         )
             msg = "Successfully added to the Database"
 
             self.closeAdd(e)
-            changePage(2, self.page, self.db)
+            changePage(2, self.page, self.adminPW, self.db)
        
         self.dig.title.value = msg
         self.page.open(self.dig)
@@ -491,8 +496,8 @@ class AddAccount:  # 3
             self.page.update()
             
 class Account(AddAccount): # 4
-    def __init__(self, page: ft.Page, db: sql.DynamoDB, data):
-        super().__init__(page, db)
+    def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB, data):
+        super().__init__(page, adminPW, db)
         self.data = data
         
         if data.get('logo') == "":
@@ -504,7 +509,7 @@ class Account(AddAccount): # 4
         self.logo.src_base64 = self.img
         self.titleField.value = data.get('title')
         self.accountField.value = data.get('account')
-        self.pwField.value = data.get('pw')
+        self.pwField.value = AES.decryptPW(data.get('pw'), self.adminPW)
         self.noteField.value = data.get('note')
         
         self.confirmDelete = Confirm("Delete?", self.deleteValues, self.closeDelete)
@@ -545,7 +550,7 @@ class Account(AddAccount): # 4
         self.dig.title.value = msg
         self.page.open(self.dig)
         
-        changePage(2, self.page, self.db)
+        changePage(2, self.page, self.adminPW, self.db)
         self.page.update()
     
     def saveValues(self, e):
@@ -562,13 +567,13 @@ class Account(AddAccount): # 4
             self.db.update(self.data.get('id'),
                           title=title,
                           account=self.accountField.value,
-                          pw=self.pwField.value,
+                          pw=AES.encryptData(self.adminPW, self.pwField.value),
                           logo=logoBase64,
                           note=self.noteField.value)
             msg = "Successfully saved to the Database"
 
             self.closeSave(e)
-            changePage(2, self.page, self.db)
+            changePage(2, self.page, self.adminPW, self.db)
 
         self.dig.title.value = msg
         self.page.open(self.dig)
@@ -582,8 +587,9 @@ class Account(AddAccount): # 4
         self.page.close(self.confirmSave)
         
 class Setting: # 5
-    def __init__(self, page: ft.Page, db: sql.DynamoDB):
+    def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
+        self.adminPW = adminPW
         self.db = db
         
         # width and height for buttons
@@ -615,23 +621,24 @@ class Setting: # 5
         self.page.update()
 
     def clickClose(self, e):
-        changePage(2, self.page, self.db)
+        changePage(2, self.page, self.adminPW, self.db)
         self.page.update()
     
     def clickChangePW(self, e):
-        changePage(6, self.page, self.db)
+        changePage(6, self.page, self.adminPW, self.db)
         self.page.update()
     
     def clickAbout(self, e):
-        changePage(7, self.page, self.db)
+        changePage(7, self.page, self.adminPW, self.db)
         self.page.update()
         
     def clickGitHub(self, e):
         self.page.launch_url("https://github.com/CA-JunPark/AccountManger2")
         
 class ChangePW: # 6
-    def __init__(self, page: ft.Page, db: sql.DynamoDB):
+    def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
+        self.adminPW = adminPW
         self.db = db
         
         with open("assets/security_icons.txt", "r") as f:
@@ -713,14 +720,14 @@ class ChangePW: # 6
         
         self.page.open(self.dlg)
         
-        changePage(0,self.page,self.db)
+        changePage(0,self.page, self.adminPW, self.db)
         self.page.update()
             
     def noChangePW(self, e):
         self.page.close(self.confirmChange)
         
     def clickClose(self, e):
-        changePage(5, self.page, self.db)
+        changePage(5, self.page, self.adminPW, self.db)
         self.page.update()
     
     def enter(self, e):
@@ -750,8 +757,9 @@ class ChangePW: # 6
                 self.page.open(self.confirmChange)
             
 class About: # 7
-    def __init__(self, page: ft.Page, db: sql.DynamoDB):
+    def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
         self.page = page
+        self.adminPW = adminPW
         self.db = db
         self.page.add(ft.SafeArea(ft.Text(
 """App name: Account Manager 2 
@@ -782,7 +790,7 @@ Images:
         self.page.update()
         
     def clickClose(self, e):
-        changePage(5, self.page, self.db)
+        changePage(5, self.page, self.adminPW, self.db)
         self.page.update()
 
 def main(page: ft.Page):
@@ -800,11 +808,11 @@ def main(page: ft.Page):
     
     # if no pw, set up
     if adminPW == "":
-        app = PWsetUp(page,db)
+        app = PWsetUp(page, adminPW, db)
     else:
-        app = PW(page,db)
-        # app = Main(page, db)
-        # app = Setting(page, db)
-        # app = About(page, db)
+        app = PW(page, adminPW, db)
+        # app = Main(page, adminPW, db)
+        # app = Setting(page, adminPW, db)
+        # app = About(page, adminPW, db)
     
 ft.app(main)
