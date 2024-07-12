@@ -2,6 +2,8 @@ from typing import override
 import flet as ft
 import sql
 import AES
+import json
+from decimal import Decimal
 
 def changePage(pageNum: int, page:ft.Page, adminPW:str, db: sql.DynamoDB,data={}):
     # Need Update after this function
@@ -28,6 +30,12 @@ def changePage(pageNum: int, page:ft.Page, adminPW:str, db: sql.DynamoDB,data={}
         case 7:
             return About(page, adminPW, db)
 
+
+def decimal_default(obj):
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError
+        
 # Custom Flet Objects
 class CenterCon(ft.Container):
     """Aligned center container"""
@@ -53,7 +61,6 @@ class AccountBtn(ft.TextButton):
                              height=logoSize)
     
         self.content = ft.Row(
-                        # alignment=ft.MainAxisAlignment.SPACE_EVENLY,
                         controls=[
                             self.logo,
                             ft.Text(text,
@@ -294,6 +301,8 @@ class Main: # 2
                                 controls=[
                                     ft.IconButton(icon=ft.icons.SETTINGS_ROUNDED,
                                                         on_click=self.clickSettings),
+                                    ft.IconButton(icon=ft.icons.SYNC_ROUNDED,
+                                                        on_click=self.sync),
                                     self.sortButton,
                                     self.input,
                                     ft.IconButton(icon=ft.icons.SEARCH_ROUNDED,
@@ -327,6 +336,12 @@ class Main: # 2
     def clickSettings(self, e):
         changePage(5, self.page, self.adminPW, self.db)
         self.page.update()
+    
+    def sync(self, e):
+        print("sync")
+        #TODO
+        with open("assets/accounts.json", "w") as f:
+            json.dump(self.db.getAll(),f, indent=4, default=decimal_default)
     
     def clickSort(self, e):
         if self.sortButton.data == "UP":

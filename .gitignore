@@ -329,3 +329,5 @@ cython_debug/
 something/
 
 tmp/
+
+am2/assets/accounts.json
