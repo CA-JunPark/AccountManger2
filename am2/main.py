@@ -25,7 +25,10 @@ def changePage(pageNum: int, page:ft.Page, db: sql.DynamoDB,data={}):
             return Setting(page, db)
         case 6:
             return ChangePW(page, db)
+        case 7:
+            return About(page, db)
 
+# Custom Flet Objects
 class CenterCon(ft.Container):
     """Aligned center container"""
     def __init__(self,content,margin=0):
@@ -64,16 +67,16 @@ class Confirm(ft.AlertDialog):
                          actions_alignment=ft.MainAxisAlignment.END)
         
 class ColorButton(ft.TextButton):
-    def __init__(self, text: str, on_click=None):
-        super().__init__(content=ft.Text(f"{text}",
-                                       size=20),
+    def __init__(self, text: str, on_click=None, height=45, width=100):
+        super().__init__(content=ft.Text(f"{text}",size=20),
                        style=ft.ButtonStyle(
                             color="BLACK",
                             bgcolor="#45D094",
                             overlay_color="#1E9690"),
-                       height=45,
-                       width=100,
-                       on_click=on_click)
+                        height=height,
+                        width=width,
+                        on_click=on_click)
+ 
 # Pages
 class PW: # 0
     def __init__(self, page: ft.Page, db: sql.DynamoDB):
@@ -111,8 +114,8 @@ class PW: # 0
                                           style=ft.ButtonStyle(
                                               overlay_color="#1E9690",
                                           ),
-                                          height=35,
-                                          width=100,
+                                          height=50,
+                                          width=150,
                                           on_click=self.enter),
                     )
                 ]   
@@ -351,16 +354,16 @@ class AddAccount:  # 3
 
         self.filePicker = ft.FilePicker(on_result=self.uploadLogo)
         self.page.overlay.append(self.filePicker)
-        self.fileUploadButton = ft.TextButton(content=ft.Text("Upload",
-                                                              size=20),
-                                                    style=ft.ButtonStyle(
-                                                    color="BLACK",
-                                                    bgcolor="#45D094",
-                                                    overlay_color="#1E9690",
-                                                ),
-                                                    height=45,
-                                                    width=100,
-                                                    on_click=lambda _:  self.filePicker.pick_files(allow_multiple=False))
+        self.fileUploadButton = ft.TextButton(
+                                    content=ft.Text("Upload",size=20),
+                                    style=ft.ButtonStyle(
+                                        color="BLACK",
+                                        bgcolor="#45D094",
+                                        overlay_color="#1E9690",
+                                    ),
+                                    height=45,
+                                    width=100,
+                                    on_click=lambda _:  self.filePicker.pick_files(allow_multiple=False))
 
         # Account Data
         with open("assets/security_icons.txt", "r") as f:
@@ -425,6 +428,7 @@ class AddAccount:  # 3
             )
         )
 
+        # Back Button
         self.page.floating_action_button = ft.FloatingActionButton(icon=ft.icons.ARROW_BACK_ROUNDED,
                                                                    bgcolor="#1E9690",
                                                                    focus_color="#45D094",
@@ -524,7 +528,7 @@ class Account(AddAccount): # 4
     
     @override
     def resetValues(self, e):
-        self.logo.src_base64 = self.default
+        self.logo.src_base64 = self.img
         self.uploaded = False
         self.titleField.value = self.data.get('title')
         self.accountField.value = self.data.get('account')
@@ -570,6 +574,7 @@ class Account(AddAccount): # 4
         self.page.open(self.dig)
 
         self.page.update()
+        
     def closeDelete(self, e):
         self.page.close(self.confirmDelete)
     
@@ -580,13 +585,205 @@ class Setting: # 5
     def __init__(self, page: ft.Page, db: sql.DynamoDB):
         self.page = page
         self.db = db
-        self.page.add(ft.SafeArea(ft.Text("Setting")))
+        
+        # width and height for buttons
+        width = 200
+        height = 80
+        
+        self.page.add(
+            ft.Container(
+                content=
+                    ft.Column(
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        controls=[CenterCon(ft.Text("Settings", size=30),
+                                            margin=ft.margin.only(top=40)),
+                                  CenterCon(
+                                      ColorButton(text="Change PW", width=width, height=height, on_click=self.clickChangePW)),
+                                  CenterCon(
+                                      ColorButton(text="About", width=width, height=height, on_click=self.clickAbout)),
+                                  CenterCon(
+                                      ColorButton(text="GitHub Link", width=width, height=height,on_click=self.clickGitHub)),]
+                    )
+            )
+        )
+        
+        self.page.floating_action_button = ft.FloatingActionButton(icon=ft.icons.ARROW_BACK_ROUNDED,
+                                                                   bgcolor="#1E9690",
+                                                                   focus_color="#45D094",
+                                                                   on_click=self.clickClose)
+        self.page.floating_action_button_location = ft.FloatingActionButtonLocation.END_TOP
+        self.page.update()
 
+    def clickClose(self, e):
+        changePage(2, self.page, self.db)
+        self.page.update()
+    
+    def clickChangePW(self, e):
+        changePage(6, self.page, self.db)
+        self.page.update()
+    
+    def clickAbout(self, e):
+        changePage(7, self.page, self.db)
+        self.page.update()
+        
+    def clickGitHub(self, e):
+        self.page.launch_url("https://github.com/CA-JunPark/AccountManger2")
+        
 class ChangePW: # 6
     def __init__(self, page: ft.Page, db: sql.DynamoDB):
         self.page = page
         self.db = db
-        self.page.add(ft.SafeArea(ft.Text("ChangePW")))
+        
+        with open("assets/security_icons.txt", "r") as f:
+            img = f.read()
+            
+        self.currentPW = ft.TextField(bgcolor="WHITE24",
+                                     autofocus=True,
+                                     password=True,
+                                     multiline=False,
+                                     text_align=ft.TextAlign.CENTER,
+                                     label="Current PW"
+                                     )
+    
+        self.newPW = ft.TextField(bgcolor="WHITE24",
+                                   password=True,
+                                   multiline=False,
+                                   text_align=ft.TextAlign.CENTER,
+                                   label="New PW"
+                                   )
+        
+        self.confirmNewPW = ft.TextField(bgcolor="WHITE24",
+                                         password=True,
+                                         multiline=False,
+                                         text_align=ft.TextAlign.CENTER,
+                                         label="Confirm New PW"
+                                         )
+        
+        self.page.add(
+            ft.Column(
+                spacing=15,
+                controls=[CenterCon(
+                            ft.Image(src_base64=img,
+                                    width=180),
+                            margin=ft.margin.only(top=40)),
+                          self.currentPW,
+                          self.newPW,
+                          self.confirmNewPW,
+                          CenterCon(
+                            ft.ElevatedButton(content=ft.Text(value="Change", size=20),
+                                            color="BLACK",
+                                            bgcolor="#45D094",
+                                            style=ft.ButtonStyle(
+                                                    overlay_color="#1E9690",
+                                                
+                            ),
+                            height=50,
+                            width=150,
+                            on_click=self.enter),
+                          )
+                ]
+            )
+        )
+        
+        self.dlg = ft.AlertDialog(title=ft.Text("Wrong Current Password",
+                                                size=20,
+                                                text_align="center"))
+
+        self.confirmChange = Confirm("Change Password?", onYes= self.yesChangePW, onNo=self.noChangePW)
+        
+        self.page.floating_action_button = ft.FloatingActionButton(icon=ft.icons.ARROW_BACK_ROUNDED,
+                                                                   bgcolor="#1E9690",
+                                                                   focus_color="#45D094",
+                                                                   on_click=self.clickClose)
+        self.page.floating_action_button_location = ft.FloatingActionButtonLocation.END_TOP
+        self.page.update()
+        
+    def yesChangePW(self,e):
+        self.db.update(targetID=0, pw=pbkdf2_sha256.hash(self.newPW.value))
+        
+        self.dlg.title = ft.Text("Password Changed\nPlease Login Again",
+                                size=20,
+                                text_align="center")
+        self.page.close(self.confirmChange)
+        
+        self.page.open(self.dlg)
+        
+        changePage(0,self.page,self.db)
+        self.page.update()
+            
+    def noChangePW(self, e):
+        self.page.close(self.confirmChange)
+        
+    def clickClose(self, e):
+        changePage(5, self.page, self.db)
+        self.page.update()
+    
+    def enter(self, e):
+        # check currentPW
+        current = self.currentPW.value
+        pw = self.db.get(id=0)['pw']
+        if not pbkdf2_sha256.verify(current, pw):
+            self.dlg.title = ft.Text("Wrong Current Password",
+                                size=20,
+                                text_align="center")
+            self.page.open(self.dlg)
+        else:
+            # Check new passwords match
+            new = self.newPW.value
+            newC = self.confirmNewPW.value
+            if new == "":
+                self.dlg.title = ft.Text("Cannot Set Empty Password",
+                                    size=20,
+                                    text_align="center")
+                self.page.open(self.dlg)
+            if new != newC:
+                self.dlg.title = ft.Text("New Passwords Does Not Match",
+                                    size=20,
+                                    text_align="center")
+            else:
+                # Update Admin PW
+                self.page.open(self.confirmChange)
+        
+        self.currentPW.value = ""
+        self.newPW.value = ""
+        self.confirmNewPW.value = ""
+        self.page.update()
+            
+class About: # 7
+    def __init__(self, page: ft.Page, db: sql.DynamoDB):
+        self.page = page
+        self.db = db
+        self.page.add(ft.SafeArea(ft.Text(
+"""App name: Account Manager 2 
+Version: 1.0.0
+Developed by: Jun Park
+Email: cskoko5786@gmail.com
+
+Third Party Libraries:
+    Flet
+    Boto3
+    PassLib
+
+Images:
+    security icons
+        < a href="https://www.flaticon.com/free-icons/security" title="security icons" > Security icons created by Freepik - Flaticon < /a >
+    settings
+        < link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" / >
+    search
+        < link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" / >
+    JP
+        'This logo was generated using OpenAI's DALL-E. © 2024 OpenAI. All rights reserved.'""")))
+
+        self.page.floating_action_button = ft.FloatingActionButton(icon=ft.icons.ARROW_BACK_ROUNDED,
+                                                                   bgcolor="#1E9690",
+                                                                   focus_color="#45D094",
+                                                                   on_click=self.clickClose)
+        self.page.floating_action_button_location = ft.FloatingActionButtonLocation.END_TOP
+        self.page.update()
+        
+    def clickClose(self, e):
+        changePage(5, self.page, self.db)
+        self.page.update()
 
 def main(page: ft.Page):
     page.title = "Account Manager 2"
@@ -605,7 +802,9 @@ def main(page: ft.Page):
     if adminPW == "":
         app = PWsetUp(page,db)
     else:
-        # app = PW(page,db)
-        app = Main(page, db)
+        app = PW(page,db)
+        # app = Main(page, db)
+        # app = Setting(page, db)
+        # app = About(page, db)
     
 ft.app(main)

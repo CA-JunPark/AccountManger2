@@ -142,8 +142,6 @@ class DynamoDB:
                     raise NameError
                 if not isinstance(value, str):
                     raise TypeError(value)
-                if attribute == 'id' and value == 0:
-                    raise ValueError
                 
                 expression += f"{attribute}=:new{attribute},"
                 values[f":new{attribute}"] = value
@@ -162,8 +160,6 @@ class DynamoDB:
         except TypeError as v:
             print("You entered: ", type(v.args[0]))
             print("Please enter a string")
-        except ValueError:
-            print("You cannot update admin item")
             
         return
         
