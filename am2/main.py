@@ -41,16 +41,33 @@ class AccountBtn(ft.TextButton):
     def __init__(self, id, text, on_click, data, **kwargs):
         super().__init__(kwargs)
         self.id = id
-        self.content = ft.Text(text,
-                               size=18)
+        
+        img_base64 = data['logo']
+        if img_base64 == "":
+            with open("assets/security_icons.txt", "r") as f:
+                img_base64 = f.read()
+        
+        logoSize = 65
+        self.logo = ft.Image(src_base64=img_base64,
+                             width=logoSize,
+                             height=logoSize)
+    
+        self.content = ft.Row(
+                        # alignment=ft.MainAxisAlignment.SPACE_EVENLY,
+                        controls=[
+                            self.logo,
+                            ft.Text(text,
+                                    size=18)
+                        ])
+        
         self.style = ft.ButtonStyle(
                         color="BLACK",
                         bgcolor="#45D094",
                         overlay_color="#1E9690",
                         shape=ft.RoundedRectangleBorder(radius=10),
                     )
-        self.width = 230
-        self.height = 100
+        self.width = 300
+        self.height = 120
         self.data = data
         self.on_click = on_click
         self.on_click = lambda e: on_click(e, self.data)
