@@ -1,7 +1,7 @@
 from typing import override
 import flet as ft
 import sql
-from passlib.hash import pbkdf2_sha256
+import AES
 
 def changePage(pageNum: int, page:ft.Page, db: sql.DynamoDB,data={}):
     # Need Update after this function
@@ -82,7 +82,7 @@ class PW: # 0
     def __init__(self, page: ft.Page, db: sql.DynamoDB):
         self.db = db
         self.page = page
-        self.hashedPW = self.db.get(id=0)['pw']
+        self.encryptedPW = self.db.get(id=0)['pw']
         
         self.pw_field = ft.TextField(bgcolor="WHITE24",
                                 autofocus=True,
@@ -125,7 +125,7 @@ class PW: # 0
     def enter(self,e):
         pw = self.pw_field.value
         
-        if pbkdf2_sha256.verify(pw, self.hashedPW):
+        if AES.verifyPW(self.encryptedPW, pw):
             # Go to Main
             changePage(2,self.page, self.db)
             self.page.update()
@@ -200,16 +200,15 @@ class PWsetUp: # 1
             valid = True
             
             # hash pw
-            pw = pbkdf2_sha256.hash(pw)
+            pw = AES.encryptPW(pw)
             
             # update admin password
-            self.db.update(0,pw=pw)
+            self.db.update(0,title="admin",account="user",pw=pw)
             
             alertMsg = "Password Created"
         
         # open dialog
-        dlg = ft.AlertDialog(title=ft.Text(
-            alertMsg, size=20, text_align="center"))
+        dlg = ft.AlertDialog(title=ft.Text(alertMsg, size=20, text_align="center"))
         self.page.open(dlg)
         
         # Go to PW
@@ -294,6 +293,7 @@ class Main: # 2
         self.page.update()
         
     def updateAccountButtons(self):
+        """update controls of AccountButtons ft.Column"""
         self.AccountButtons.controls = [AccountBtn(id=account.get('id'),
                                                     text=f"{account.get('title')}\n{account.get('account')}\n{
                                                     account.get('pw')}",
@@ -468,7 +468,7 @@ class AddAccount:  # 3
         else:
             self.db.put(title=title,
                         account=self.accountField.value,
-                        pw=self.pwField.value,
+                        pw=AES.decryptPW(self.pwField.value),
                         logo=logoBase64,
                         note=self.noteField.value
                         )
@@ -699,7 +699,12 @@ class ChangePW: # 6
         self.page.update()
         
     def yesChangePW(self,e):
-        self.db.update(targetID=0, pw=pbkdf2_sha256.hash(self.newPW.value))
+        try:
+            newPW = AES.encryptPW(self.newPW.value)
+        except:
+            print("Encrypt Failed")
+            
+        self.db.update(targetID=0, pw=newPW)
         
         self.dlg.title = ft.Text("Password Changed\nPlease Login Again",
                                 size=20,
@@ -722,7 +727,7 @@ class ChangePW: # 6
         # check currentPW
         current = self.currentPW.value
         pw = self.db.get(id=0)['pw']
-        if not pbkdf2_sha256.verify(current, pw):
+        if not AES.verifyPW(pw, current):
             self.dlg.title = ft.Text("Wrong Current Password",
                                 size=20,
                                 text_align="center")
@@ -743,11 +748,6 @@ class ChangePW: # 6
             else:
                 # Update Admin PW
                 self.page.open(self.confirmChange)
-        
-        self.currentPW.value = ""
-        self.newPW.value = ""
-        self.confirmNewPW.value = ""
-        self.page.update()
             
 class About: # 7
     def __init__(self, page: ft.Page, db: sql.DynamoDB):

@@ -6,7 +6,7 @@ Email: cskoko5786@gmail.com
 Third Party Libraries:
     Flet
     Boto3
-    PassLib
+    pycryptodome
 
 Images:
     security icons
