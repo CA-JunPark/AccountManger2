@@ -30,12 +30,23 @@ def changePage(pageNum: int, page:ft.Page, adminPW:str, db: sql.DynamoDB,data={}
         case 7:
             return About(page, adminPW, db)
 
-
 def decimal_default(obj):
+    """json config for Decimal type"""
     if isinstance(obj, Decimal):
         return float(obj)
     raise TypeError
-        
+
+def loadAccounts() -> list:
+    """load my accounts in json"""
+    with open("assets/accounts.json", "r") as f:
+        accounts = sorted(json.load(f), key=lambda x: x['title'].lower())
+    return accounts
+
+def dumpAccounts(accounts: list):
+    """dump accounts"""
+    with open("assets/accounts.json", "w") as f:
+        json.dump(accounts, f, indent=4, default=decimal_default)
+
 # Custom Flet Objects
 class CenterCon(ft.Container):
     """Aligned center container"""
@@ -251,8 +262,9 @@ class Main: # 2
         self.adminPW = adminPW # decrypted
         self.db = db
         
-        # get all accounts from DB
-        self.accounts = sorted(self.db.getAll(), key=lambda x: x['title'].lower())
+        # get all accounts from json
+        # self.accounts = sorted(self.db.getAll(), key=lambda x: x['title'].lower())
+        self.accounts = loadAccounts()
         
         self.accountsSubset = self.accounts.copy()
         
@@ -301,8 +313,6 @@ class Main: # 2
                                 controls=[
                                     ft.IconButton(icon=ft.icons.SETTINGS_ROUNDED,
                                                         on_click=self.clickSettings),
-                                    ft.IconButton(icon=ft.icons.SYNC_ROUNDED,
-                                                        on_click=self.sync),
                                     self.sortButton,
                                     self.input,
                                     ft.IconButton(icon=ft.icons.SEARCH_ROUNDED,
@@ -336,13 +346,7 @@ class Main: # 2
     def clickSettings(self, e):
         changePage(5, self.page, self.adminPW, self.db)
         self.page.update()
-    
-    def sync(self, e):
-        print("sync")
-        #TODO
-        with open("assets/accounts.json", "w") as f:
-            json.dump(self.db.getAll(),f, indent=4, default=decimal_default)
-    
+
     def clickSort(self, e):
         if self.sortButton.data == "UP":
             self.sortButton.icon = ft.icons.ARROW_DOWNWARD_ROUNDED
@@ -505,12 +509,28 @@ class AddAccount:  # 3
             self.closeAdd(e)
             msg = "You must have 'title'"
         else:
+            pw = AES.encryptData(self.adminPW, self.pwField.value)
+            
+            newAccount = {}
+            newAccount['title'] = title
+            newAccount['account'] = self.accountField.value
+            newAccount['pw'] = pw
+            newAccount['logo'] = logoBase64
+            newAccount['note'] = self.noteField.value
+            
+            # add new account to local json file
+            accounts = loadAccounts()
+            accounts.append(newAccount)
+            dumpAccounts(accounts)
+            
+            # add new account to DB
             self.db.put(title=title,
                         account=self.accountField.value,
-                        pw=AES.encryptData(self.adminPW, self.pwField.value),
+                        pw=pw,
                         logo=logoBase64,
                         note=self.noteField.value
                         )
+            
             msg = "Successfully added to the Database"
 
             self.closeAdd(e)
@@ -577,7 +597,17 @@ class Account(AddAccount): # 4
         self.page.update()
 
     def deleteValues(self, e):
-        self.db.delete(self.data.get('id'))
+        # delete from local json
+        accounts = loadAccounts()
+        # accounts = [account for account in accounts if account.get('id') == self.data.get('id')]
+        for i, account in enumerate(accounts):
+            if account.get('id') ==self.data.get('id'):
+                del accounts[i]
+                break
+        dumpAccounts(accounts)
+        
+        # delete from DB
+        self.db.delete(Decimal(str(self.data.get('id'))))
         self.closeDelete(e)
         
         msg = "Successfully deleted from the Database"
