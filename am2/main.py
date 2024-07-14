@@ -389,6 +389,7 @@ class AddAccount:  # 3
         self.adminPW = adminPW  # decrypted
         self.db = db
         self.uploaded = False
+        self.backPressed = False
         
         self.dig = ft.AlertDialog(
             title=ft.Text("",
@@ -479,8 +480,10 @@ class AddAccount:  # 3
         self.page.floating_action_button_location = ft.FloatingActionButtonLocation.END_TOP
 
     def clickClose(self, e):
-        changePage(2, self.page,self.adminPW, self.db)
-        self.page.update()
+        if not self.backPressed:
+            self.backPressed = True
+            changePage(2, self.page,self.adminPW, self.db)
+            self.page.update()
     
     def closeReset(self, e):
         self.page.close(self.confirmReset)
@@ -700,8 +703,10 @@ class Setting: # 5
         self.page.update()
 
     def clickClose(self, e):
-        changePage(2, self.page, self.adminPW, self.db)
-        self.page.update()
+        if not self.backPressed:
+            self.backPressed = True
+            changePage(2, self.page, self.adminPW, self.db)
+            self.page.update()
     
     def clickChangePW(self, e):
         changePage(6, self.page, self.adminPW, self.db)
