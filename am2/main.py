@@ -111,7 +111,7 @@ class ColorButton(ft.TextButton):
                         height=height,
                         width=width,
                         on_click=on_click)
- 
+
 # Pages
 class PW: # 0
     def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
@@ -665,14 +665,29 @@ class Setting: # 5
                 content=
                     ft.Column(
                         alignment=ft.MainAxisAlignment.CENTER,
-                        controls=[CenterCon(ft.Text("Settings", size=30),
-                                            margin=ft.margin.only(top=40)),
+                        controls=[CenterCon(
+                                    ft.Text("Settings",
+                                        size=30),
+                                        margin=ft.margin.only(top=40)),
                                   CenterCon(
-                                      ColorButton(text="Change PW", width=width, height=height, on_click=self.clickChangePW)),
+                                    ColorButton(
+                                        text="Change PW", 
+                                        width=width, 
+                                        height=height, 
+                                        on_click=self.clickChangePW)),
                                   CenterCon(
-                                      ColorButton(text="About", width=width, height=height, on_click=self.clickAbout)),
+                                    ColorButton(
+                                        text="About",
+                                        width=width,
+                                        height=height,
+                                        on_click=self.clickAbout)),
                                   CenterCon(
-                                      ColorButton(text="GitHub Link", width=width, height=height,on_click=self.clickGitHub)),]
+                                    ColorButton(
+                                        text="GitHub Link", 
+                                        width=width,
+                                        height=height,
+                                        on_click=self.clickGitHub)),
+                                  ]
                     )
             )
         )
@@ -697,7 +712,7 @@ class Setting: # 5
         self.page.update()
         
     def clickGitHub(self, e):
-        self.page.launch_url("https://github.com/CA-JunPark/AccountManger2")
+        self.page.launch_url("https://github.com/CA-JunPark/AccountManger2")  
         
 class ChangePW: # 6
     def __init__(self, page: ft.Page, adminPW:str, db: sql.DynamoDB):
