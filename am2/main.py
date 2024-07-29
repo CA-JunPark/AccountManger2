@@ -868,7 +868,6 @@ class Setting: # 5
             self.page.update()
         
     def clickSync(self, e):
-        print("Sync")
         loadedAccount = self.db.getAll()
         syncAccountToLocal(loadedAccount)
         global accounts
