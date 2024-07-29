@@ -7,7 +7,7 @@ class DynamoDB:
         self.table = self.db.Table('Accounts')
         self. attributes = set(['id', 'title', 'account', 'pw', 'logo', 'note'])
         
-    def encodeImg(self, img: bytes) -> str:
+    def encodeImg(img: bytes) -> str:
         """_summary_
 
         Encode images with base64
@@ -20,7 +20,7 @@ class DynamoDB:
         """
         return base64.b64encode(img.read()).decode('utf-8')
 
-    def decodeImg(self, img:str) -> bytes:
+    def decodeImg(img:str) -> bytes:
         """_summary_
 
         Decode base64 encoded string to bytes
@@ -42,6 +42,17 @@ class DynamoDB:
             int: number of items in the table
         """
         return self.table.scan(TableName="Accounts", Select='COUNT')["Count"]
+
+    def maxID(self) -> int:
+        """_summary_
+        
+        Get maximum value of id as int
+        
+        Returns:
+            int: maximum integer of id attribute
+        """
+        accounts = self.table.scan()["Items"]
+        return max(int(account['id']) for account in accounts)
     
     def put(self, title: str = "", account: str = "", pw: str = "", logo: str = "", note: str = "") -> None:
         """_summary_
@@ -61,7 +72,7 @@ class DynamoDB:
         
         self.table.put_item(
             Item={
-                'id': self.count(),
+                'id': self.maxID()+1,
                 'account': account,
                 'logo' : logo,
                 'title' : title,

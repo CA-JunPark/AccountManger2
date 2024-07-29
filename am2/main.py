@@ -4,8 +4,13 @@ import sql
 import AES
 import json
 from decimal import Decimal
+import sqlite3
+import base64
 
-def changePage(pageNum: int, page:ft.Page, adminPW:str, db: sql.DynamoDB,data={}):
+# SQLite file path
+localDB = 'assets/accounts.db' 
+
+def changePage(pageNum: int, page:ft.Page, adminPW:str, db: sql.DynamoDB, data={}):
     # Need Update after this function
     page.controls.clear()
     page.floating_action_button = None
@@ -30,22 +35,82 @@ def changePage(pageNum: int, page:ft.Page, adminPW:str, db: sql.DynamoDB,data={}
         case 7:
             return About(page, adminPW, db)
 
-def decimal_default(obj):
-    """json config for Decimal type"""
-    if isinstance(obj, Decimal):
-        return float(obj)
-    raise TypeError
+def loadAccountsFromLocal() -> list:
+    """load my accounts from SQLite"""
+    conn = sqlite3.connect(localDB)
+    cursor = conn.cursor()
 
-def loadAccounts() -> list:
-    """load my accounts in json"""
-    with open("assets/accounts.json", "r") as f:
-        accounts = sorted(json.load(f), key=lambda x: x['title'].lower())
+    cursor.execute('SELECT id, title, account, pw, logo, note FROM users')
+    rows = cursor.fetchall()
+    accounts = []
+    for row in rows:
+        account = {
+            'id': row[0],
+            'title': row[1],
+            'account': row[2],
+            'pw': row[3],
+            'logo': base64.b64encode(row[4]).decode('utf-8') if row[4] else "",
+            'note': row[5]
+        }
+        accounts.append(account)
+    
+    conn.close()
+        
     return accounts
 
-def dumpAccounts(accounts: list):
-    """dump accounts"""
-    with open("assets/accounts.json", "w") as f:
-        json.dump(accounts, f, indent=4, default=decimal_default)
+def addAccountToLocal(acc: dict):
+    global localDB
+    """add an account to the local database. Should contain id, title, account, pw, logo, note"""
+    conn = sqlite3.connect(localDB)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT OR REPLACE INTO users (id, title, account, PW, logo, note) VALUES (?, ?, ?, ?, ?, ?)
+    ''', (acc['id'], 
+          acc['title'], 
+          acc['account'], 
+          acc['pw'], 
+          acc['logo'], 
+          acc['note']))
+    
+    conn.commit()
+    conn.close()
+
+def deleteAccountFromLocal(id: int):
+    """Delete an account from the local database with id."""
+    global localDB
+    conn = sqlite3.connect(localDB)
+    cursor = conn.cursor()
+    
+    # Delete account by ID
+    cursor.execute('''
+        DELETE FROM users WHERE id = ?
+    ''', (id,))
+    
+    conn.commit()
+    conn.close()
+
+def editAccountFromLocal(acc: list):
+    """Edit Account. Assume acc = [id, title, account, pw, logo, note]"""
+    global localDB
+    
+    id, title, account, pw, logo, note = acc
+    
+    # Connect to the SQLite database
+    conn = sqlite3.connect(localDB)
+    cursor = conn.cursor()
+    # Update account information
+    cursor.execute('''
+        UPDATE users
+        SET title = ?, account = ?, PW = ?, logo = ?, note = ?
+        WHERE id = ?
+    ''', (title, account, pw, logo, note, id))
+    
+    conn.commit()
+    conn.close()
+
+# Load Accounts from DynamoDB
+accounts = loadAccountsFromLocal()
 
 # Custom Flet Objects
 class CenterCon(ft.Container):
@@ -262,11 +327,8 @@ class Main: # 2
         self.adminPW = adminPW # decrypted
         self.db = db
         
-        # get all accounts from json
-        # self.accounts = sorted(self.db.getAll(), key=lambda x: x['title'].lower())
-        self.accounts = loadAccounts()
-        
-        self.accountsSubset = self.accounts.copy()
+        self.accounts = accounts
+        self.accountsSubset = accounts
         
         self.sortButton = ft.IconButton(icon=ft.icons.ARROW_UPWARD_ROUNDED,
                                         on_click=self.clickSort, data="UP")
@@ -515,16 +577,16 @@ class AddAccount:  # 3
             pw = AES.encryptData(self.adminPW, self.pwField.value)
             
             newAccount = {}
+            newAccount['id'] = self.db.maxID() + 1
             newAccount['title'] = title
             newAccount['account'] = self.accountField.value
             newAccount['pw'] = pw
-            newAccount['logo'] = logoBase64
+            # newAccount['logo'] = logoBase64
+            newAccount['logo'] = base64.b64decode(logoBase64)
             newAccount['note'] = self.noteField.value
             
-            # add new account to local json file
-            accounts = loadAccounts()
-            accounts.append(newAccount)
-            dumpAccounts(accounts)
+            # add new account to local DB
+            addAccountToLocal(newAccount)
             
             # add new account to DB
             self.db.put(title=title,
@@ -537,6 +599,9 @@ class AddAccount:  # 3
             msg = "Successfully added to the Database"
 
             self.closeAdd(e)
+            # reload accounts
+            global accounts
+            accounts = loadAccountsFromLocal()
             changePage(2, self.page, self.adminPW, self.db)
        
         self.dig.title.value = msg
@@ -547,7 +612,7 @@ class AddAccount:  # 3
     def uploadLogo(self, e: ft.FilePickerResultEvent):
         if e.files != None:
             with open(e.files[0].path, "rb") as file:
-                img = self.db.encodeImg(file)
+                img = sql.DynamoDB.encodeImg(file)
             self.logo.src_base64 = img
             self.uploaded = True
             self.page.update()
@@ -600,23 +665,21 @@ class Account(AddAccount): # 4
         self.page.update()
 
     def deleteValues(self, e):
-        # delete from local json
-        accounts = loadAccounts()
-        # accounts = [account for account in accounts if account.get('id') == self.data.get('id')]
-        for i, account in enumerate(accounts):
-            if account.get('id') ==self.data.get('id'):
-                del accounts[i]
-                break
-        dumpAccounts(accounts)
+        # delete from local DB
+        deleteAccountFromLocal(self.data.get('id'))
         
         # delete from DB
         self.db.delete(Decimal(str(self.data.get('id'))))
         self.closeDelete(e)
         
+        # open dialog
         msg = "Successfully deleted from the Database"
         self.dig.title.value = msg
         self.page.open(self.dig)
         
+        # reload accounts
+        global accounts
+        accounts = loadAccountsFromLocal()
         changePage(2, self.page, self.adminPW, self.db)
         self.page.update()
     
@@ -631,17 +694,34 @@ class Account(AddAccount): # 4
             self.closeSave(e)
             msg = "You must have 'title'"
         else:
+            encryptedPW = AES.encryptData(self.adminPW, self.pwField.value)
+            
+            # Edit local DB
+            editedAccount = [] # item order = [id, title, account, pw, logo, note]
+            editedAccount.append(self.data.get('id'))
+            editedAccount.append(title)
+            editedAccount.append(self.accountField.value)
+            editedAccount.append(encryptedPW)
+            editedAccount.append(logoBase64)
+            editedAccount.append(self.noteField.value)
+            
+            editAccountFromLocal(editedAccount)
+            
+            # Edit DB
             self.db.update(self.data.get('id'),
                           title=title,
                           account=self.accountField.value,
-                          pw=AES.encryptData(self.adminPW, self.pwField.value),
+                          pw=encryptedPW,
                           logo=logoBase64,
                           note=self.noteField.value)
             msg = "Successfully saved to the Database"
 
             self.closeSave(e)
+            global accounts
+            accounts = loadAccountsFromLocal()
             changePage(2, self.page, self.adminPW, self.db)
 
+        # dialog
         self.dig.title.value = msg
         self.page.open(self.dig)
 
@@ -658,6 +738,7 @@ class Setting: # 5
         self.page = page
         self.adminPW = adminPW # decrypted
         self.db = db
+        self.backPressed = False
         
         # width and height for buttons
         width = 200
@@ -672,6 +753,18 @@ class Setting: # 5
                                     ft.Text("Settings",
                                         size=30),
                                         margin=ft.margin.only(top=40)),
+                                  CenterCon(
+                                    ColorButton(
+                                        text="Sync",
+                                        width=width,
+                                        height=height,
+                                        on_click=self.clickSync)),
+                                  CenterCon(
+                                    ColorButton(
+                                        text="Secret Mode",
+                                        width=width,
+                                        height=height,
+                                        on_click=self.clickSecret)),
                                   CenterCon(
                                     ColorButton(
                                         text="Change PW", 
@@ -707,6 +800,12 @@ class Setting: # 5
             self.backPressed = True
             changePage(2, self.page, self.adminPW, self.db)
             self.page.update()
+        
+    def clickSync(self, e):
+        print("Sync")
+    
+    def clickSecret(self, e):
+        print("Secret")
     
     def clickChangePW(self, e):
         changePage(6, self.page, self.adminPW, self.db)
@@ -798,7 +897,7 @@ class ChangePW: # 6
         
         # Update all passwords of accounts    
         count = self.db.count()
-        print(count)
+
         for id in range(1,count):
             # hash to string
             pwString = AES.decryptPW(self.db.get(id=id)['pw'], self.adminPW)
@@ -910,8 +1009,5 @@ def main(page: ft.Page):
         app = PWsetUp(page, adminPW, db)
     else:
         app = PW(page, adminPW, db)
-        # app = Main(page, adminPW, db)
-        # app = Setting(page, adminPW, db)
-        # app = About(page, adminPW, db)
     
 ft.app(main)
