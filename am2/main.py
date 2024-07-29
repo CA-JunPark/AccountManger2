@@ -2,7 +2,6 @@ from typing import override
 import flet as ft
 import sql
 import AES
-import json
 from decimal import Decimal
 import sqlite3
 import base64
