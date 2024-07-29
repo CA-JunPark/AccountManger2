@@ -1076,12 +1076,18 @@ Images:
 
 def main(page: ft.Page):
     page.title = "Account Manager 2"
-    page.window.icon = "assets/security_icons.png"
     page.adaptive = True
 
     width = 400
+    height = width*16/9
+
+    page.window.icon = "assets/security_icons.png"
     page.window.width = width
-    page.window.height = width*16/9
+    page.window.height = height
+    page.window.min_width = width
+    page.window.min_height = height
+    page.window.max_width = width
+    page.window.mmx_height = height
     
     # get admin pw
     db = sql.DynamoDB()
