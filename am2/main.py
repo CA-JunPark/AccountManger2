@@ -39,8 +39,19 @@ def loadAccountsFromLocal() -> list:
     """load my accounts from SQLite"""
     conn = sqlite3.connect(localDB)
     cursor = conn.cursor()
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS accounts (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            account TEXT,
+            pw TEXT,
+            logo BLOB,
+            note TEXT
+        )
+    ''')
 
-    cursor.execute('SELECT id, title, account, pw, logo, note FROM users')
+    cursor.execute('SELECT id, title, account, pw, logo, note FROM accounts')
     rows = cursor.fetchall()
     accounts = []
     for row in rows:
@@ -65,7 +76,7 @@ def addAccountToLocal(acc: dict):
     cursor = conn.cursor()
     
     cursor.execute('''
-        INSERT OR REPLACE INTO users (id, title, account, PW, logo, note) VALUES (?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO accounts (id, title, account, PW, logo, note) VALUES (?, ?, ?, ?, ?, ?)
     ''', (acc['id'], 
           acc['title'], 
           acc['account'], 
@@ -84,7 +95,7 @@ def deleteAccountFromLocal(id: int):
     
     # Delete account by ID
     cursor.execute('''
-        DELETE FROM users WHERE id = ?
+        DELETE FROM accounts WHERE id = ?
     ''', (id,))
     
     conn.commit()
@@ -101,7 +112,7 @@ def editAccountFromLocal(acc: list):
     cursor = conn.cursor()
     # Update account information
     cursor.execute('''
-        UPDATE users
+        UPDATE accounts
         SET title = ?, account = ?, PW = ?, logo = ?, note = ?
         WHERE id = ?
     ''', (title, account, pw, logo, note, id))
@@ -109,6 +120,39 @@ def editAccountFromLocal(acc: list):
     conn.commit()
     conn.close()
 
+def syncAccountToLocal(accs: list):
+    """Sync Account from DynamoDB to SQLite"""
+    conn = sqlite3.connect(localDB)
+    cursor = conn.cursor()
+    
+    # Create table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS accounts(
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            account TEXT,
+            pw TEXT,
+            logo BLOB,
+            note TEXT
+        )
+    ''')
+
+    # Insert items into SQLite table
+    for acc in accs:
+        cursor.execute('''
+            INSERT OR REPLACE INTO accounts (id, title, account, PW, logo, note) VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            int(acc['id']),
+            acc['title'],
+            acc['account'],
+            acc['pw'],
+            sql.DynamoDB.decodeImg(acc['logo']),
+            acc['note']
+        ))
+    
+    conn.commit()
+    conn.close()
+    
 # Load Accounts from DynamoDB
 accounts = loadAccountsFromLocal()
 
@@ -803,6 +847,10 @@ class Setting: # 5
         
     def clickSync(self, e):
         print("Sync")
+        loadedAccount = self.db.getAll()
+        syncAccountToLocal(loadedAccount)
+        global accounts
+        accounts = loadAccountsFromLocal()
     
     def clickSecret(self, e):
         print("Secret")

@@ -84,7 +84,7 @@ class DynamoDB:
     def getAll(self) -> list:
         """_summary_
 
-        Get all items in the table 
+        Get all items in the table.
         Admin Item excluded
        
         Returns:
@@ -92,8 +92,14 @@ class DynamoDB:
         """
         
         # get all items
-        accounts = self.table.scan()["Items"]
-        
+        response = self.table.scan()
+        accounts = response["Items"]
+
+        # If the table contains more than 1MB of data, you'll need to paginate
+        while 'LastEvaluatedKey' in response:
+            response = self.table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            accounts.extend(response['Items'])
+                
         # remove admin item
         accounts = [d for d in accounts if d.get('id') != 0]
         
