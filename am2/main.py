@@ -9,6 +9,7 @@ import base64
 
 # SQLite file path
 localDB = 'assets/accounts.db' 
+secretMode = False
 
 def changePage(pageNum: int, page:ft.Page, adminPW:str, db: sql.DynamoDB, data={}):
     # Need Update after this function
@@ -211,15 +212,21 @@ class Confirm(ft.AlertDialog):
                          actions_alignment=ft.MainAxisAlignment.END)
         
 class ColorButton(ft.TextButton):
-    def __init__(self, text: str, on_click=None, height=45, width=100):
-        super().__init__(content=ft.Text(f"{text}",size=20),
+    def __init__(self, text: str, on_click=None, height=45, width=100, data=None):
+        self.text_widget = ft.Text(f"{text}", size=20)
+        super().__init__(content=self.text_widget,
                        style=ft.ButtonStyle(
                             color="BLACK",
                             bgcolor="#45D094",
                             overlay_color="#1E9690"),
                         height=height,
                         width=width,
-                        on_click=on_click)
+                        on_click=on_click,
+                        data=data)
+    
+    def set_text(self, newText:str):
+        self.text_widget.value = newText
+        self.update()
 
 # Pages
 class PW: # 0
@@ -442,12 +449,25 @@ class Main: # 2
         
     def updateAccountButtons(self):
         """update controls of AccountButtons ft.Column"""
-        self.AccountButtons.controls = [AccountBtn(id=account.get('id'),
-                                                    text=f"{account.get('title')}\n{account.get('account')}\n{
-                                                    AES.decryptPW(account.get('pw'),self.adminPW)}",
-                                                    on_click=self.clickAccount,
-                                                    data=account)
-                                                    for account in self.accountsSubset]
+        global secretMode
+        
+        match secretMode:
+            case False:
+                self.AccountButtons.controls = [AccountBtn(id=account.get('id'),
+                                                text=f"{account.get('title')}\n{account.get('account')}\n{
+                                                AES.decryptPW(account.get('pw'), self.adminPW)}",
+                                                on_click=self.clickAccount,
+                                                data=account)
+                                                for account in self.accountsSubset]
+            case True:
+                self.AccountButtons.controls = [AccountBtn(id=account.get('id'),
+                                                text=f"{account.get('title')}\n{account.get('account')}\n{
+                                                "**********"}",
+                                                on_click=self.clickAccount,
+                                                data=account)
+                                                for account in self.accountsSubset]
+        
+        
                                             
     def clickSettings(self, e):
         changePage(5, self.page, self.adminPW, self.db)
@@ -788,6 +808,12 @@ class Setting: # 5
         width = 200
         height = 80
         
+        self.secretButton = ColorButton(
+            text="Secret Mode: Off",
+            width=width,
+            height=height,
+            on_click=self.clickSecret, data=False)
+        
         self.page.add(
             ft.Container(
                 content=
@@ -804,11 +830,8 @@ class Setting: # 5
                                         height=height,
                                         on_click=self.clickSync)),
                                   CenterCon(
-                                    ColorButton(
-                                        text="Secret Mode",
-                                        width=width,
-                                        height=height,
-                                        on_click=self.clickSecret)),
+                                    self.secretButton
+                                    ),
                                   CenterCon(
                                     ColorButton(
                                         text="Change PW", 
@@ -853,8 +876,21 @@ class Setting: # 5
         accounts = loadAccountsFromLocal()
     
     def clickSecret(self, e):
-        print("Secret")
-    
+        global secretMode
+        
+        toggle = secretMode
+        match toggle:
+            case False:
+                # on
+                self.secretButton.data = 1
+                self.secretButton.set_text('Secret Mode: On')
+                secretMode = True
+            case True:
+                # off
+                self.secretButton.data = 0
+                self.secretButton.set_text('Secret Mode: Off')
+                secretMode = False
+            
     def clickChangePW(self, e):
         changePage(6, self.page, self.adminPW, self.db)
         self.page.update()
